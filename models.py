@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from enums import Genre
+
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
@@ -11,7 +11,7 @@ class Venue(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)
     name = db.Column(db.String(), nullable=False)
-    genres = db.Column(db.String(), nullable=False)
+    genres = db.Column(db.ARRAY(db.String), nullable=False)
 
     city = db.Column(db.String(120), nullable=False)
     state = db.Column(db.String(120), nullable=False)
@@ -37,7 +37,7 @@ class Artist(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, nullable=False)
     name = db.Column(db.String(), nullable=False)
-    genres = db.Column(db.String(), nullable=False)
+    genres = db.Column(db.ARRAY(db.String), nullable=False)
 
     city = db.Column(db.String(120), nullable=False)
     state = db.Column(db.String(120), nullable=False)
