@@ -60,18 +60,30 @@ class Artist(db.Model):
     __table_args__ = (db.UniqueConstraint('name', 'phone'),)
 
 
-class  Show(db.Model):
-  __tablename__ = 'shows'
+class Show(db.Model):
+    __tablename__ = 'shows'
 
-  artist_id = db.Column(db.Integer, db.ForeignKey('artists.id', ondelete='CASCADE'), primary_key=True, nullable=False)
-  venue_id = db.Column(db.Integer, db.ForeignKey('venues.id', ondelete='CASCADE'), primary_key=True, nullable=False)
-  show_date = db.Column(db.Date, primary_key=True, nullable=False)
-  show_time = db.Column(db.Time, nullable=False)
+    artist_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'artists.id', ondelete='CASCADE'), primary_key=True, nullable=False
+    )
+    venue_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'venues.id', ondelete='CASCADE'), primary_key=True, nullable=False
+    )
+    show_date = db.Column(db.Date, primary_key=True, nullable=False)
+    show_time = db.Column(db.Time, nullable=False)
 
 
 class Availability(db.Model):
     __tablename__ = "availabilities"
 
-    artist_id = db.Column(db.Integer, db.ForeignKey('artists.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    artist_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'artists.id', ondelete='CASCADE'), primary_key=True, nullable=False
+    )
     date = db.Column(db.Date, primary_key=True, nullable=False)
     time = db.Column(db.Time, nullable=False)

@@ -9,6 +9,7 @@ import babel
 from flask import Flask, render_template, request, Response, flash, redirect, \
     url_for, jsonify
 from flask_moment import Moment
+from flask_wtf.csrf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import logging
@@ -24,6 +25,7 @@ from models import *
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
+csrf = CSRFProtect(app)
 # db imported from models.py
 db.init_app(app)
 
@@ -241,21 +243,9 @@ def create_venue_form():
 def create_venue_submission():
     form = VenueForm(request.form)
     if form.validate_on_submit():
-        genres = request.form.getlist('genres')
         try:
-            venue = Venue(
-                name=request.form['name'],
-                genres=genres,
-                city=request.form['city'],
-                state=request.form['state'],
-                address=request.form['address'],
-                phone=request.form['phone'],
-                facebook_link=request.form['facebook_link'],
-                image_link=request.form['image_link'],
-                website=request.form['website_link'],
-                seeking_talent=True if 'seeking_talent' in request.form else False,
-                seeking_description=request.form['seeking_description']
-            )
+            venue = Venue()
+            form.populate_obj(venue)
 
             db.session.add(venue)
             db.session.commit()
@@ -406,7 +396,6 @@ def show_artist(artist_id):
     )
 
     past_shows = list()
-    past_count = results.count()
     for (venue, show) in results.all():
         showdatetime = datetime.combine(show.show_date, show.show_time)
         past_shows.append({
@@ -424,7 +413,6 @@ def show_artist(artist_id):
     )
 
     upcoming_shows = list()
-    upcoming_count = results.count()
     for (venue, show) in results.all():
         showdatetime = datetime.combine(show.show_date, show.show_time)
         upcoming_shows.append({
@@ -500,19 +488,8 @@ def add_availability_submission(artist_id):
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
     artist = Artist.query.get(artist_id)
-    genres = artist.genres
 
-    form = ArtistForm()
-    form.name.data = artist.name
-    form.genres.data = genres
-    form.city.data = artist.city
-    form.state.data = artist.state
-    form.phone.data = artist.phone
-    form.website_link.data = artist.website
-    form.facebook_link.data = artist.facebook_link
-    form.seeking_venue.data = artist.seeking_venue
-    form.seeking_description.data = artist.seeking_description
-    form.image_link.data = artist.image_link
+    form = ArtistForm(obj=artist)
 
     return render_template('forms/edit_artist.html', form=form, artist=artist)
 
@@ -523,19 +500,9 @@ def edit_artist_submission(artist_id):
     artist = Artist.query.get(artist_id)
     if form.validate_on_submit():
         try:
-            artist.genres = request.form.getlist('genres')
-            artist.name = request.form['name']
-            artist.city = request.form['city']
-            artist.state = request.form['state']
-            artist.phone = request.form['phone']
-            artist.facebook_link = request.form['facebook_link']
-            artist.image_link = request.form['image_link']
-            artist.website = request.form['website_link']
-            artist.seeking_venue = True if 'seeking_venue' in request.form else False
-            artist.seeking_description = request.form['seeking_description']
-
+            form.populate_obj(artist)
             db.session.commit()
-        except:
+        except Exception:
             db.session.rollback()
             print(sys.exc_info())
             flash(
@@ -559,20 +526,8 @@ def edit_artist_submission(artist_id):
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
     venue = Venue.query.get(venue_id)
-    genres = venue.genres
 
-    form = VenueForm()
-    form.name.data = venue.name
-    form.genres.data = genres
-    form.address.data = venue.address
-    form.city.data = venue.city
-    form.state.data = venue.state
-    form.phone.data = venue.phone
-    form.website_link.data = venue.website
-    form.facebook_link.data = venue.facebook_link
-    form.seeking_talent.data = venue.seeking_talent
-    form.seeking_description.data = venue.seeking_description
-    form.image_link.data = venue.image_link
+    form = VenueForm(obj=venue)
 
     return render_template('forms/edit_venue.html', form=form, venue=venue)
 
@@ -583,18 +538,7 @@ def edit_venue_submission(venue_id):
     venue = Venue.query.get(venue_id)
     if form.validate_on_submit():
         try:
-            venue.genres = request.form.getlist('genres')
-            venue.name = request.form['name']
-            venue.city = request.form['city']
-            venue.state = request.form['state']
-            venue.address = request.form['address']
-            venue.phone = request.form['phone']
-            venue.facebook_link = request.form['facebook_link']
-            venue.image_link = request.form['image_link']
-            venue.website = request.form['website_link']
-            venue.seeking_talent = True if 'seeking_talent' in request.form else False
-            venue.seeking_description = request.form['seeking_description']
-
+            form.populate_obj(venue)
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -632,21 +576,10 @@ def create_artist_form():
 def create_artist_submission():
     # called upon submitting the new artist listing form
     form = ArtistForm(request.form)
-    genres = request.form.getlist('genres')
     if form.validate_on_submit():
         try:
-            artist = Artist(
-                name=request.form['name'],
-                genres=genres,
-                city=request.form['city'],
-                state=request.form['state'],
-                phone=request.form['phone'],
-                facebook_link=request.form['facebook_link'],
-                image_link=request.form['image_link'],
-                website=request.form['website_link'],
-                seeking_venue=True if 'seeking_talent' in request.form else False,
-                seeking_description=request.form['seeking_description']
-            )
+            artist = Artist()
+            form.populate_obj(artist)
 
             db.session.add(artist)
             db.session.commit()
@@ -709,68 +642,75 @@ def create_shows():
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
     # called to create new shows in the db, upon submitting new show listing form
+    form = ShowForm(request.form)
     message = ''
-    try:
-        artist = Artist.query.get(request.form['artist_id'])
-        venue = Venue.query.get(request.form['venue_id'])
-        # If artist doesn't exist in the database
-        if not artist:
-            error_source = 'Artist'
-            source_id = request.form['artist_id']
-            message = f"{error_source} with ID {source_id} does not exist."
-            raise Exception
-        # If venue doesn't exist in the database
-        elif not venue:
-            error_source = 'Venue'
-            source_id = request.form['venue_id']
-            message = f"{error_source} with ID {source_id} does not exist."
-            raise Exception
+    if form.validate_on_submit():
+        try:
+            artist = Artist.query.get(form.artist_id.data)
+            venue = Venue.query.get(form.venue_id.data)
+            # If artist doesn't exist in the database
+            if not artist:
+                error_source = 'Artist'
+                source_id = form.artist_id.data
+                message = f"{error_source} with ID {source_id} does not exist."
+                raise Exception
+            # If venue doesn't exist in the database
+            elif not venue:
+                error_source = 'Venue'
+                source_id = form.venue_id.data
+                message = f"{error_source} with ID {source_id} does not exist."
+                raise Exception
 
-        show_datetime = dateutil.parser.parse(request.form['start_time'])
+            show_datetime = dateutil.parser.parse(form.start_time.data)
 
-        # Check if the artist is available at the given date and time
-        results = db.session.query(Availability.date, Availability.time).filter(
-            Availability.artist == artist,
-            Availability.date == show_datetime.date(),
-            Availability.time <= show_datetime.time()
-        ).first()
-        # If no results are found -> the artist is not available
-        if not results:
-            message = \
-                f"{artist.name} is not available on {request.form['start_time']}"
-            raise Exception
+            # Check if the artist is available at the given date and time
+            results = db.session.query(
+                Availability.date, Availability.time).filter(
+                Availability.artist == artist,
+                Availability.date == show_datetime.date(),
+                Availability.time <= show_datetime.time()
+            ).first()
+            # If no results are found -> the artist is not available
+            if not results:
+                message = \
+                    f"{artist.name} is not available on " \
+                    f"{request.form['start_time']}"
+                raise Exception
 
-        # Check if a show at this venue is already schedueled at the given date
-        exist_show = Show.query.filter_by(
-            venue_id=venue.id, show_date=show_datetime.date()
-        ).first()
-        # If a show is already scheduled at the given time raise an exception
-        if exist_show is not None:
-            message = \
-                f"{venue.name} has already a scheduled show on the {show_datetime.date()}"
-            raise Exception
+            # Check if a show at this venue is already schedueled at the given date
+            exist_show = Show.query.filter_by(
+                venue_id=venue.id, show_date=show_datetime.date()
+            ).first()
+            # If a show is already scheduled at the given time raise an exception
+            if exist_show is not None:
+                message = \
+                    f"{venue.name} has already a scheduled show on the " \
+                    f"{show_datetime.date()}"
+                raise Exception
 
-        show = Show(show_date=show_datetime.date(),
-                    show_time=show_datetime.time())
-        show.artist = artist
-        show.venue = venue
+            show = Show(show_date=show_datetime.date(),
+                        show_time=show_datetime.time())
+            show.artist = artist
+            show.venue = venue
 
-        db.session.add(show)
-        db.session.commit()
-        # on successful db insert, flash success
-        flash('Show was successfully listed!')
-    except:
-        db.session.rollback()
-        print(sys.exc_info())
-        flash(
-            f'An error occurred. Show could not be listed. {message}',
-            'error'
-        )
-    finally:
-        db.session.close()
+            db.session.add(show)
+            db.session.commit()
+            # on successful db insert, flash success
+            flash('Show was successfully listed!')
+        except Exception:
+            db.session.rollback()
+            print(sys.exc_info())
+            flash(
+                f'An error occurred. Show could not be listed. {message}',
+                'error'
+            )
+        finally:
+            db.session.close()
 
-    # return render_template('pages/home.html')
-    return redirect(url_for('index'))
+        # return render_template('pages/home.html')
+        return redirect(url_for('index'))
+
+    return render_template('forms/new_show.html', form=form)
 
 
 @app.errorhandler(404)
